@@ -139,6 +139,8 @@ def main():
         text_to_check += "\n" + tool_input.get("new_string", "")
     elif tool_name == "NotebookEdit":
         text_to_check = tool_input.get("new_source", "")
+    elif tool_name in ("Read", "Grep", "Glob"):
+        text_to_check = json.dumps(tool_input)
     else:
         sys.exit(0)
 
