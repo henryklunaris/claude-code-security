@@ -1,0 +1,80 @@
+{
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prevent-force-push.py"
+            }
+          ]
+        },
+        {
+          "matcher": "Bash|Edit|Write|NotebookEdit",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prevent-env-exfil.py"
+            }
+          ]
+        }
+      ]
+    },
+    "permissions": {
+    "allow": [
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": [
+      "Read(~/.claude/settings.json)",
+      "Edit(~/.claude/settings.json)",
+      "Write(~/.claude/settings.json)",
+      "Bash(rm *)",
+      "Bash(rm -rf *)",
+      "Bash(rmdir *)",
+      "Bash(del *)",
+      "Bash(git rm *)",
+      "Bash(git rm -f *)",
+      "Bash(git clean *)",
+      "Bash(sudo rm *)",
+      "Bash(sudo *)",
+      "Bash(su *)",
+      "Bash(> /dev/*)",
+      "Bash(shred *)",
+      "Bash(unlink *)",
+      "Read(./.env*)",
+      "Read(./secrets/**)",
+      "Read(./**/credentials*)",
+      "Fetch(*)",
+      "Read(./.mcp.json)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Bash(cat .env*)",
+      "Bash(cat */.env*)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Read(**/id_ecdsa*)",
+      "Read(**/id_dsa*)",
+      "Read(**/.ssh/id_*)",
+      "Read(**/.aws/credentials)",
+      "Read(**/.aws/config)",
+      "Edit(.claude/hooks/prevent-force-push.py)",
+      "Write(.claude/hooks/prevent-force-push.py)",
+      "Bash(rm .claude/hooks/prevent-force-push.py)",
+      "Bash(rm -f .claude/hooks/prevent-force-push.py)",
+      "Bash(mv .claude/hooks/prevent-force-push.py *)",
+      "Bash(chmod .claude/hooks/prevent-force-push.py *)",
+      "Edit(.claude/hooks/prevent-env-exfil.py)",
+      "Write(.claude/hooks/prevent-env-exfil.py)",
+      "Bash(rm .claude/hooks/prevent-env-exfil.py)",
+      "Bash(rm -f .claude/hooks/prevent-env-exfil.py)",
+      "Bash(mv .claude/hooks/prevent-env-exfil.py *)",
+      "Bash(chmod .claude/hooks/prevent-env-exfil.py *)"
+    ]
+  }
+}
