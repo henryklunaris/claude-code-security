@@ -74,7 +74,15 @@
       "Bash(rm .claude/hooks/prevent-env-exfil.py)",
       "Bash(rm -f .claude/hooks/prevent-env-exfil.py)",
       "Bash(mv .claude/hooks/prevent-env-exfil.py *)",
-      "Bash(chmod .claude/hooks/prevent-env-exfil.py *)"
+      "Bash(chmod .claude/hooks/prevent-env-exfil.py *)",
+      "Grep(.env)",
+      "Grep(.env.*)",
+      "Grep(**/.env)",
+      "Grep(**/.env.*)",
+      "Grep(**/secrets/**)",
+      "Grep(**/.ssh/*)",
+      "Grep(**/.aws/*)",
+      "Grep(**/credentials*)"
     ]
   }
 }
