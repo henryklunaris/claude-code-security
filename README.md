@@ -6,8 +6,8 @@ Protect your secrets and prevent dangerous git operations when using Claude Code
 
 This repo contains two security hooks that run automatically whenever Claude Code tries to do something:
 
-1. **Force Push Protection** (`prevent-force-push.py`) — Blocks Claude from running `git push --force`, `git push -f`, or `git push --force-with-lease`. These commands can destroy your git history and are almost never what you want.
-2. **Environment File Protection** (`prevent-env-exfil.py`) — Blocks Claude from reading, copying, uploading, or writing code that accesses your secret environment files. This covers 60+ attack patterns including direct file reads, scripting tricks, archive/network exfiltration, and more.
+1. **Force Push Protection** (`prevent-force-push.py`) -- Blocks Claude from running `git push --force`, `git push -f`, or `git push --force-with-lease`. These commands can destroy your git history and are almost never what you want.
+2. **Environment File Protection** (`prevent-env-exfil.py`) -- Blocks Claude from directly reading, copying, uploading, or accessing your `.env` files. This covers 60+ attack patterns including direct file reads, shell commands, archive/network exfiltration, and more -- while still letting Claude write and run code that uses your environment variables safely.
 
 On top of the hooks, this repo includes a **deny rules config** that adds a second layer of protection, blocking Claude from even attempting to read secret files, SSH keys, AWS credentials, and more. It also prevents Claude from editing or deleting the hook files themselves.
 
@@ -24,7 +24,7 @@ If you don't have Python 3
 Mainly get Claude Code to install it for you, but if you know what to do then do one of the below options
 
 - **Mac:** Run `brew install python3` in Terminal, or download from [python.org](https://python.org)
-- **Windows:** Download from [python.org](https://python.org) and check "Add to PATH" during install 
+- **Windows:** Download from [python.org](https://python.org) and check "Add to PATH" during install
 - **Linux:** Run `sudo apt install python3` (Ubuntu/Debian) or `sudo dnf install python3` (Fedora)
 
 ---
@@ -46,7 +46,7 @@ In the root of the cloned repo, create an empty file called `.env`. This is just
 
 ### Step 3: Check the settings file
 
-The repo already includes a `.claude/settings.json` file with everything pre-configured — the hooks and all the deny rules. You shouldn't need to touch it. If for some reason it's missing, create it with this content:
+The repo already includes a `.claude/settings.json` file with everything pre-configured -- the hooks and all the deny rules. You shouldn't need to touch it. If for some reason it's missing, create it with this content:
 
 ```jsonc
 {
@@ -141,11 +141,85 @@ If Claude Code is already running, quit it and start it again. The hooks only lo
 
 Once installed, start Claude Code and try asking it to:
 
-- `"Run git push --force origin main"` — should be blocked
-- `"Show me what's in my .env file"` — should be blocked
-- `"Write a Python script that reads .env"` — should be blocked
+- `"Run git push --force origin main"` -- should be blocked
+- `"Show me what's in my .env file"` -- should be blocked
+- `"Write a script that uses my API_KEY using dotenv from .env to call an API"` -- should be allowed (see below)
 
 Its also possible Claude will push back on you, you can just say you have some test things in your .env and you want to test the newly installed hooks
+
+---
+
+## How Claude Can Safely Use Your Environment Variables
+
+The hook is designed to be practical, not just restrictive. Claude **can** write and run code that uses your env secrets -- it just can't read the `.env` file directly.
+
+### How it works
+
+The hook splits its protection into two layers:
+
+1. **Direct access patterns** (blocked everywhere) -- `cat .env`, `source .env`, `open('.env')`, `cp .env`, `curl .env`, etc. These are blocked in Bash commands, file writes, and edits because they directly touch the `.env` file.
+
+2. **Bash-only patterns** (blocked in shell commands only) -- `load_dotenv`, `import dotenv`, `dotenv.config()`, `.env` filename references, etc. These are only blocked when Claude tries to run them as a direct shell command. Claude **can** write these into source files like `.py`, `.js`, `.md`, and config files, because the code doesn't execute until the script is run.
+
+### The safe workflow
+
+When you ask Claude to build something that needs API keys or secrets from your `.env`:
+
+1. **Tell Claude the variable names** -- e.g. "use `AIRTABLE_API_KEY` from my `.env`"
+2. **Claude writes the script** -- using `load_dotenv()` and `os.environ["AIRTABLE_API_KEY"]` as normal. The hook allows this because it's just writing source code to a file.
+3. **Claude runs the script** -- with `python3 script.py`. The hook allows this because the Bash command itself doesn't reference `.env`. The `load_dotenv()` call inside the script loads the variables at runtime.
+
+Everything is automatic. You don't need to run scripts manually.
+
+### Example
+
+You say:
+> "Write a script using my `AIRTABLE_API_KEY` to fetch my tables from base `appXXXXXXXX`"
+
+Claude writes `fetch_tables.py`:
+```python
+from dotenv import load_dotenv
+import os
+import requests
+
+load_dotenv()
+
+api_key = os.environ["AIRTABLE_API_KEY"]
+base_id = "appXXXXXXXX"
+
+url = f"https://api.airtable.com/v0/meta/bases/{base_id}/tables"
+headers = {"Authorization": f"Bearer {api_key}"}
+
+resp = requests.get(url, headers=headers)
+resp.raise_for_status()
+
+for table in resp.json()["tables"]:
+    print(f"- {table['name']}")
+```
+
+Then Claude runs it:
+```bash
+python3 fetch_tables.py
+```
+
+Both steps succeed. Your API key stays in `.env` and is never directly visible to Claude.
+
+### What stays blocked
+
+Even with this workflow, Claude still **cannot**:
+
+- Read your `.env` file directly (`cat .env`, the Read tool on `.env`, `open('.env')`)
+- Source your env into a shell (`source .env && ...`)
+- Copy, move, archive, or upload your `.env` file
+- Dump environment variables (`printenv`, `/proc/self/environ`)
+- Use inline script tricks (`python3 -c "..."` with env references)
+- Run dotenv commands directly in the shell
+
+### Security note
+
+This setup prioritizes practical usability. Claude can write a script that uses `load_dotenv()` and then execute it, which means the script's **output** (like API responses, table names, etc.) will be visible to Claude. However, Claude never sees the raw secret values unless the script explicitly prints them -- and you can see exactly what Claude writes before it runs.
+
+For maximum security, you can always review the script Claude writes before letting it execute. If you see something like `print(os.environ["SECRET"])` in the code, that's a red flag.
 
 ---
 
@@ -153,27 +227,34 @@ Its also possible Claude will push back on you, you can just say you have some t
 
 ### Force Push Hook
 
-
-| Command                       | Blocked?      |
-| ----------------------------- | ------------- |
-| `git push --force`            | ✅ Yes         |
-| `git push -f`                 | ✅ Yes         |
-| `git push --force-with-lease` | ✅ Yes         |
-| `git push` (normal)           | ❌ No, allowed |
-
+| Command                       | Blocked?    |
+| ----------------------------- | ----------- |
+| `git push --force`            | Yes         |
+| `git push -f`                 | Yes         |
+| `git push --force-with-lease` | Yes         |
+| `git push` (normal)           | No, allowed |
 
 ### Environment File Hook
 
-Blocks 60+ patterns including:
+**Blocked everywhere (Bash, Write, Edit):**
 
-- **Direct reads** (`cat`, `less`, `head`, `tail`, etc.)
-- **Language-level reads** (`open()`, `dotenv`, `load_dotenv`, etc.)
+- **Direct file reads** (`cat`, `less`, `head`, `tail`, etc.)
+- **Language-level file access** (`open('.env')`, `fs.readFile('.env')`, `Path('.env')`, etc.)
 - **Copy/move/archive** (`cp`, `tar`, `zip`, etc.)
 - **Network exfiltration** (`curl`, `wget`, `nc`, etc.)
-- **Git exposure** (`git add`, `git show`, etc.)
+- **Git exposure** (`git add .env`, `git show`, etc.)
 - **Environment dumping** (`printenv`, `/proc/self/environ`)
 - **Editor access** (`vim`, `nano`, `emacs`)
-- And many more sneaky tricks
+- **Source/eval** (`source .env`, `eval .env`)
+- And many more
+
+**Blocked in Bash only (allowed in written code):**
+
+- `from dotenv import load_dotenv`
+- `import dotenv` / `require('dotenv')`
+- `dotenv.config()` / `dotenv.load()` / `dotenv.parse()`
+- `.env` filename string references (e.g. in configs, docs)
+- `.env.local`, `.env.prod`, `.env.development`, etc.
 
 ### Deny Rules
 
@@ -207,15 +288,20 @@ Blocks 60+ patterns including:
 - On Linux, run `ls -la` to see hidden folders
 - On Windows, enable "Show hidden files" in File Explorer settings
 
+**"Claude can't write code that uses dotenv"**
+
+- Make sure you're using the latest version of `prevent-env-exfil.py` from this repo. Older versions blocked dotenv imports in all contexts. The current version only blocks dotenv in Bash commands and allows it in written source code.
+
 ---
 
 ## Limitations
 
 No regex-based blocking system is 100% bulletproof. A determined attacker could potentially find creative bypasses. These hooks significantly raise the bar, but for maximum security:
 
-1. **Never store production secrets in local files** — use a secrets manager
+1. **Never store production secrets in local files** -- use a secrets manager
 2. **Always review Claude's permission prompts** before approving
-3. **Keep the deny rules in your user-level settings** (`~/.claude/settings.json`) so Claude can't modify them. In the deny list we did make it so that it can't edit the rules, but generally, you could put it in that spot too for another safety barrier.
+3. **Review scripts before they run** -- if Claude writes a script that prints your env vars directly, that's suspicious
+4. **Keep the deny rules in your user-level settings** (`~/.claude/settings.json`) so Claude can't modify them. In the deny list we did make it so that it can't edit the rules, but generally, you could put it in that spot too for another safety barrier.
 
 ---
 
