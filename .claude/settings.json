@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prevent-force-push.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prevent-force-push.py"
           }
         ]
       },
@@ -15,7 +15,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prevent-env-exfil.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prevent-env-exfil.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prevent-delete.py"
           }
         ]
       }
@@ -31,8 +40,9 @@
       "Edit(~/.claude/settings.json)",
       "Read(/.claude/settings.json)",
       "Edit(/.claude/settings.json)",
-      "Edit(/.claude/hooks/prevent-force-push.py)",
-      "Edit(/.claude/hooks/prevent-env-exfil.py)",
+      "Read(/.claude/settings.local.json)",
+      "Edit(/.claude/settings.local.json)",
+      "Edit(/.claude/hooks/**)",
 
       "Read(/.mcp.json)",
       "Read(**/.env)",
@@ -55,25 +65,16 @@
       "Grep(**/credentials*)",
       "Bash(cat .env*)",
       "Bash(cat */.env*)",
-      "Bash(rm .claude/settings.json)",
-      "Bash(rm -f .claude/settings.json)",
       "Bash(mv .claude/settings.json *)",
-      "Bash(rm .claude/hooks/prevent-force-push.py)",
-      "Bash(rm -f .claude/hooks/prevent-force-push.py)",
-      "Bash(mv .claude/hooks/prevent-force-push.py *)",
-      "Bash(chmod .claude/hooks/prevent-force-push.py *)",
-      "Bash(rm .claude/hooks/prevent-env-exfil.py)",
-      "Bash(rm -f .claude/hooks/prevent-env-exfil.py)",
-      "Bash(mv .claude/hooks/prevent-env-exfil.py *)",
-      "Bash(chmod .claude/hooks/prevent-env-exfil.py *)",
+      "Bash(mv .claude/settings.local.json *)",
+      "Bash(mv .claude/hooks/* *)",
+      "Bash(chmod .claude/hooks/* *)",
+      "Bash(chmod * .claude/hooks/*)",
       "Bash(rm *)",
-      "Bash(rm -rf *)",
       "Bash(rmdir *)",
       "Bash(del *)",
       "Bash(git rm *)",
-      "Bash(git rm -f *)",
       "Bash(git clean *)",
-      "Bash(sudo rm *)",
       "Bash(sudo *)",
       "Bash(su *)",
       "Bash(> /dev/*)",
